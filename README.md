@@ -62,7 +62,7 @@ python main.py --vg250-path path/to/VG250_KRS.shp      # use a local BKG boundar
 ## Project layout
 
 ```
-farmhealth/
+src/
   config.py      # CLI flags + run configuration
   aoi.py         # BKG VG250 -> dissolved county polygon + bbox
   ndvi_cube.py   # openEO: S2 -> SCL mask -> NDVI -> monthly median -> resample

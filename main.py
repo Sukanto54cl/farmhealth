@@ -7,8 +7,8 @@ Examples
     python main.py --aoi-name "Barnim" --aoi-key-prefix 12060
 """
 
-from farmhealth.config import parse_args
-from farmhealth.pipeline import run
+from src.config import parse_args
+from src.pipeline import run
 
 
 def main() -> None:
