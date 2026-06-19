@@ -47,11 +47,16 @@ def _download_vg250(data_dir: Path) -> Path:
     if not extract_dir.exists():
         if not zip_path.exists():
             print(f"Downloading BKG VG250 boundaries from {VG250_URL} ...")
-            with requests.get(VG250_URL, stream=True, timeout=300) as r:
-                r.raise_for_status()
-                with open(zip_path, "wb") as fh:
-                    for chunk in r.iter_content(chunk_size=1 << 20):
-                        fh.write(chunk)
+            tmp_path = zip_path.with_suffix(".zip.part")
+            try:
+                with requests.get(VG250_URL, stream=True, timeout=300) as r:
+                    r.raise_for_status()
+                    with open(tmp_path, "wb") as fh:
+                        for chunk in r.iter_content(chunk_size=1 << 20):
+                            fh.write(chunk)
+                tmp_path.rename(zip_path)
+            finally:
+                tmp_path.unlink(missing_ok=True)
         print(f"Extracting {zip_path} ...")
         with zipfile.ZipFile(zip_path) as zf:
             zf.extractall(extract_dir)
