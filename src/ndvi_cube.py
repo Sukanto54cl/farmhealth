@@ -47,11 +47,14 @@ def build_monthly_ndvi(connection: openeo.Connection, aoi: AOI, config: Config) 
 
     monthly = ndvi.aggregate_temporal_period(period="month", reducer="median")
 
-    # Fill gaps left by fully-clouded months so the cube has regular time steps.
-    monthly = monthly.apply_dimension(dimension="t", process="array_interpolate_linear")
-
+    # Resample to the target resolution first so the interpolation below runs on a much
+    # smaller pixel grid — doing it at native (10m) resolution over a whole county can
+    # exceed synchronous/executor memory limits on the backend.
     monthly = monthly.resample_spatial(
         resolution=config.resolution,
         projection=config.epsg,
     )
+
+    # Fill gaps left by fully-clouded months so the cube has regular time steps.
+    monthly = monthly.apply_dimension(dimension="t", process="array_interpolate_linear")
     return monthly

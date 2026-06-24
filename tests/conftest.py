@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import geopandas as gpd
 import pytest
 from openeo.rest._testing import DummyBackend, OPENEO_BACKEND
 from shapely.geometry import Polygon
@@ -35,3 +36,17 @@ def sample_aoi() -> AOI:
 @pytest.fixture
 def config(tmp_path: Path) -> Config:
     return Config(out_dir=tmp_path / "outputs", data_dir=tmp_path / "data")
+
+
+@pytest.fixture
+def sample_blocks() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        {
+            "FB_ID": ["DEBBLI0264002685", "DEBBLI2064399462"],
+            "geometry": [
+                Polygon([(0.1, 0.1), (0.1, 0.2), (0.2, 0.2), (0.2, 0.1)]),
+                Polygon([(0.3, 0.3), (0.3, 0.4), (0.4, 0.4), (0.4, 0.3)]),
+            ],
+        },
+        crs="EPSG:4326",
+    )

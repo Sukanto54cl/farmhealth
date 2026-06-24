@@ -52,6 +52,10 @@ class Config:
     def timeseries_png(self) -> Path:
         return self.out_dir / "ndvi_timeseries.png"
 
+    @property
+    def blocks_timeseries_csv(self) -> Path:
+        return self.out_dir / "ndvi_blocks_timeseries.csv"
+
 
 def parse_args(argv: list[str] | None = None) -> Config:
     p = argparse.ArgumentParser(

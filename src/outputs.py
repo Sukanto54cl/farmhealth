@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import geopandas as gpd
 import matplotlib
 
 matplotlib.use("Agg")
@@ -66,3 +67,28 @@ def write_timeseries(monthly: openeo.DataCube, aoi: AOI, config: Config) -> Path
     plt.close(fig)
     print(f"Wrote {config.timeseries_png}")
     return config.timeseries_csv
+
+
+def _parse_block_timeseries(result: dict, block_ids: list[str]) -> pd.DataFrame:
+    """Flatten an aggregate_spatial JSON result (one geometry per block) to (block_id, date, ndvi)."""
+    rows = []
+    for date, geometries in result.items():
+        for block_id, geometry in zip(block_ids, geometries):
+            value = geometry[0] if geometry else None
+            rows.append({"block_id": block_id, "date": pd.to_datetime(date), "ndvi": value})
+    df = pd.DataFrame(rows).sort_values(["block_id", "date"]).reset_index(drop=True)
+    return df
+
+
+def write_block_timeseries(monthly: openeo.DataCube, blocks: gpd.GeoDataFrame, config: Config) -> Path:
+    """Compute mean NDVI per month for each block, and save as CSV (block_id, date, ndvi)."""
+    config.out_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Computing mean-NDVI timeseries for {len(blocks)} block(s) ...")
+    # aggregate_spatial needs a GeoJSON-style dict, not a GeoDataFrame directly.
+    result = monthly.aggregate_spatial(geometries=blocks.__geo_interface__, reducer="mean").execute()
+    df = _parse_block_timeseries(result, list(blocks["FB_ID"]))
+
+    out = config.blocks_timeseries_csv
+    df.to_csv(out, index=False)
+    print(f"Wrote {out} ({len(df)} rows)")
+    return out

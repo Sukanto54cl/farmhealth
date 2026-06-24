@@ -70,9 +70,11 @@ Execution flow, `main.py` -> `src/pipeline.py::run`:
 3. **`src/ndvi_cube.py`** — `connect()` authenticates to CDSE; `build_monthly_ndvi()` builds the
    openEO process graph: load S2 L2A bands B04/B08/SCL over the AOI bbox and date range, mask
    pixels whose SCL class is in `SCL_MASK_CLASSES`, compute NDVI, reduce to monthly median,
-   linearly interpolate gaps from fully-clouded months (keeps regular time steps), then resample
-   to the target resolution/projection. This builds a lazy graph — nothing executes until a
-   downstream `.execute()`/`.execute_batch()` call in `outputs.py`.
+   resample to the target resolution/projection, then linearly interpolate gaps from
+   fully-clouded months (keeps regular time steps). Resampling before interpolating keeps the
+   interpolation step's pixel grid small — doing it at native (10m) resolution over a whole
+   county can exceed the backend's synchronous/executor memory limits. This builds a lazy graph
+   — nothing executes until a downstream `.execute()`/`.execute_batch()` call in `outputs.py`.
 4. **`src/outputs.py`** — `write_timeseries()` runs `aggregate_spatial` (mean NDVI per month)
    synchronously and writes CSV + a matplotlib PNG chart; `write_netcdf_cube()` clips the cube to
    the county polygon and submits an openEO **batch job** (can take several minutes) to produce
