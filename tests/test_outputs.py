@@ -56,7 +56,8 @@ def test_parse_block_timeseries_maps_geometry_order_to_block_id():
 
     a = df[df["block_id"] == "A"].reset_index(drop=True)
     b = df[df["block_id"] == "B"].reset_index(drop=True)
-    assert list(a["ndvi"]) == [0.1, None]
+    assert a["ndvi"].iloc[0] == pytest.approx(0.1)
+    assert a["ndvi"].iloc[1:].isna().all()
     assert list(b["ndvi"]) == [0.2, 0.3]
 
 
