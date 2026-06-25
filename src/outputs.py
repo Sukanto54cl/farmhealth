@@ -115,4 +115,18 @@ def write_block_timeseries(monthly: openeo.DataCube, blocks: gpd.GeoDataFrame, c
     out = config.blocks_timeseries_csv
     df.to_csv(out, index=False)
     print(f"Wrote {out} ({len(df)} rows)")
+    fig, ax = plt.subplots(figsize=(10, 5))
+    for block_id, group in df.groupby("block_id"):
+        ax.plot(group["date"], group["ndvi"], marker="o", label=block_id)
+    ax.set_title(f"Mean NDVI per block — {config.aoi_name} ({config.start} to {config.end})")
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Mean NDVI")
+    ax.set_ylim(-0.1, 1.0)
+    ax.grid(True, alpha=0.3)
+    ax.legend(title="Block ID", bbox_to_anchor=(1.05, 1), loc="upper left")
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    fig.savefig(config.blocks_timeseries_png, dpi=120)
+    plt.close(fig)
+    print(f"Wrote {config.blocks_timeseries_png}")  
     return out

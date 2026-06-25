@@ -51,6 +51,10 @@ class Config:
     @property
     def timeseries_png(self) -> Path:
         return self.out_dir / "ndvi_timeseries.png"
+    
+    @property
+    def blocks_timeseries_png(self) -> Path:
+        return self.out_dir / "ndvi_blocks_timeseries.png"
 
     @property
     def blocks_timeseries_csv(self) -> Path:
