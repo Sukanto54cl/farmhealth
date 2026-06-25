@@ -10,7 +10,7 @@ from pathlib import Path
 
 import geopandas as gpd
 
-BLOCKS_PATH = Path("data/dfbk_fb_mol.shp")
+BLOCKS_PATH = Path(__file__).resolve().parent.parent / "data" / "dfbk_fb_mol.shp"
 BLOCK_IDS = ("DEBBLI0264002685", "DEBBLI2064399462")
 
 
