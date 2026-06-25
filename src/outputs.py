@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
+from typing import Any
 
 import geopandas as gpd
 import matplotlib
@@ -11,9 +13,31 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import openeo
 import pandas as pd
+from openeo.rest import OpenEoApiPlainError
+from openeo.rest.vectorcube import VectorCube
 
 from .aoi import AOI
 from .config import Config
+
+# CDSE's synchronous /result endpoint occasionally fails a process graph with a
+# transient backend-side 5xx (e.g. a structured 500 "A part of your process graph
+# failed multiple times" from the openEO app, or a plain 502 Bad Gateway from a
+# fronting proxy). Retry such failures with backoff rather than aborting the run.
+# OpenEoApiPlainError is the base class for both the structured and "plain"
+# (non-JSON, e.g. proxy-level) error responses.
+_RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
+
+
+def _execute_with_retry(cube: VectorCube, *, attempts: int = 3, base_delay: float = 5.0) -> Any:
+    for attempt in range(1, attempts + 1):
+        try:
+            return cube.execute()
+        except OpenEoApiPlainError as exc:
+            if exc.http_status_code not in _RETRYABLE_STATUS_CODES or attempt == attempts:
+                raise
+            delay = base_delay * 2 ** (attempt - 1)
+            print(f"  aggregate_spatial failed ({exc}); retrying in {delay:.0f}s ({attempt}/{attempts}) ...")
+            time.sleep(delay)
 
 
 def write_netcdf_cube(monthly: openeo.DataCube, aoi: AOI, config: Config) -> Path:
@@ -48,7 +72,7 @@ def write_timeseries(monthly: openeo.DataCube, aoi: AOI, config: Config) -> Path
     """Compute county mean NDVI per month, save CSV, and render a chart."""
     config.out_dir.mkdir(parents=True, exist_ok=True)
     print("Computing county mean-NDVI timeseries ...")
-    result = monthly.aggregate_spatial(geometries=aoi.geometry_4326, reducer="mean").execute()
+    result = _execute_with_retry(monthly.aggregate_spatial(geometries=aoi.geometry_4326, reducer="mean"))
     df = _parse_timeseries(result)
 
     df.to_csv(config.timeseries_csv, index=False)
@@ -85,7 +109,7 @@ def write_block_timeseries(monthly: openeo.DataCube, blocks: gpd.GeoDataFrame, c
     config.out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Computing mean-NDVI timeseries for {len(blocks)} block(s) ...")
     # aggregate_spatial needs a GeoJSON-style dict, not a GeoDataFrame directly.
-    result = monthly.aggregate_spatial(geometries=blocks.__geo_interface__, reducer="mean").execute()
+    result = _execute_with_retry(monthly.aggregate_spatial(geometries=blocks.__geo_interface__, reducer="mean"))
     df = _parse_block_timeseries(result, list(blocks["FB_ID"]))
 
     out = config.blocks_timeseries_csv
