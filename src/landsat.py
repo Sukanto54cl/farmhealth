@@ -122,6 +122,59 @@ def download_scene(
     return sr_path, qa_path
 
 
+def pixel_grid(
+    da: xr.DataArray,
+    blocks: gpd.GeoDataFrame,
+    *,
+    epsg: int,
+    buffer_px: int = 2,
+) -> gpd.GeoDataFrame:
+    """Vectorize the raster's 30 m pixel grid into per-pixel box polygons near the blocks.
+
+    ``da`` must be a rioxarray-backed DataArray (e.g. one band of an opened ``_sr.tif``)
+    whose CRS matches ``epsg``. ``blocks`` is reprojected to ``epsg`` internally, so it may
+    be passed in any CRS.
+
+    For each block, selects pixels whose centers fall within the block's bounds expanded by
+    ``buffer_px`` pixels, builds an exact pixel-boundary box from ``da``'s real coordinate
+    centers and resolution, and computes the fraction of each box's area overlapping the
+    block. A pixel with ``frac_in_block`` close to 1.0 is "pure"; a fraction strictly between
+    0 and 1 is "mixed". ``buffer_px * resolution`` should stay smaller than whatever
+    ``buffer_m`` was used when the scene was downloaded, or pixels near that edge will be
+    silently missing rather than present.
+
+    Returns a GeoDataFrame (CRS=``epsg``), one row per pixel per block, columns:
+    ``block_id``, ``x``, ``y``, ``frac_in_block``, ``geometry``.
+    """
+    xres, yres = da.rio.resolution()  # e.g. (30.0, -30.0): x positive, y negative
+    assert da.rio.crs.to_epsg() == epsg, f"da CRS EPSG:{da.rio.crs.to_epsg()} != epsg={epsg}"
+    half_x, half_y = abs(xres) / 2, abs(yres) / 2
+
+    blocks_proj = blocks.to_crs(epsg)
+    xs, ys = da.x.values, da.y.values  # pixel centers
+
+    rows = []
+    for block_id, geom in zip(blocks_proj["FB_ID"], blocks_proj.geometry):
+        minx, miny, maxx, maxy = geom.bounds
+        minx -= buffer_px * abs(xres)
+        maxx += buffer_px * abs(xres)
+        miny -= buffer_px * abs(yres)
+        maxy += buffer_px * abs(yres)
+
+        x_sel = xs[(xs >= minx) & (xs <= maxx)]
+        y_sel = ys[(ys >= miny) & (ys <= maxy)]
+
+        for yc in y_sel:
+            for xc in x_sel:
+                cell = box(xc - half_x, yc - half_y, xc + half_x, yc + half_y)
+                frac = cell.intersection(geom).area / cell.area
+                rows.append((block_id, xc, yc, frac, cell))
+
+    return gpd.GeoDataFrame(
+        rows, columns=["block_id", "x", "y", "frac_in_block", "geometry"], crs=epsg
+    )
+
+
 def _confirm_download(n: int) -> bool:
     """Ask the user to confirm before downloading. Only an explicit 'y'/'yes' proceeds."""
     reply = input(f"Download these {n} scene(s)? [y/N]: ").strip().lower()
