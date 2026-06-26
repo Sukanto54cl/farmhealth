@@ -52,10 +52,42 @@ python main.py --vg250-path path/to/VG250_KRS.shp      # use a local BKG boundar
 | `--out-dir` | `outputs` | Where deliverables are written. |
 | `--vg250-path` | _(auto-download)_ | Local BKG VG250 vector file override. |
 
+## Landsat 30 m scenes for the field blocks
+
+CDSE hosts only Copernicus/Sentinel data, so 30 m imagery comes from a separate source:
+Landsat Collection-2 Level-2 (surface reflectance) on the **Microsoft Planetary Computer**
+STAC. `src/landsat.py` searches the `landsat-c2-l2` collection over the two field blocks and
+writes **one GeoTIFF per scene** to `outputs/landsat/`, clipped to the blocks (with a context
+buffer):
+
+- `<date>_<scene>_sr.tif` — 6-band surface reflectance, scaled to `[0, 1]` (band order:
+  red, green, blue, nir08, swir16, swir22), float32, EPSG:32633, 30 m.
+- `<date>_<scene>_qa.tif` — the `qa_pixel` band (uint16) for cloud/shadow masking.
+
+It first prints the matching scenes (date, id, cloud %) and then waits for a `y` confirmation
+before downloading; reply anything else to abort. Use `--yes` to skip the prompt.
+
+```bash
+uv run python -m src.landsat --start 2024-06-01 --end 2024-07-15 --max-cloud 40
+# -> lists scenes, then: "Download these N scene(s)? [y/N]:"
+```
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--start` / `--end` | `2025-05-01` / `2026-05-01` | Date range (end exclusive). |
+| `--max-cloud` | `50` | Max scene cloud cover percent. |
+| `--buffer` | `150` | Context buffer around the blocks (m). |
+| `--no-scale` | _(off)_ | Keep raw DN instead of scaling to reflectance. |
+| `-y` / `--yes` | _(off)_ | Skip the confirmation prompt and download. |
+
+Reflectance is left unclamped, so cloud/saturated pixels can exceed 1.0 — use the QA file to
+mask them.
+
 ## Data sources
 
 - **Imagery:** Sentinel-2 L2A via CDSE openEO (`SENTINEL2_L2A`). Cloud masking uses the
   Scene Classification Layer (SCL).
+- **30 m imagery:** Landsat C2 L2 via the Microsoft Planetary Computer STAC (`landsat-c2-l2`).
 - **Boundary:** BKG **VG250** *Verwaltungsgebiete 1:250 000* (Datenlizenz Deutschland –
   Namensnennung 2.0). Auto-downloaded from the BKG `aktuell` open-data alias.
 
@@ -67,6 +99,8 @@ src/
   aoi.py         # BKG VG250 -> dissolved county polygon + bbox
   ndvi_cube.py   # openEO: S2 -> SCL mask -> NDVI -> monthly median -> resample
   outputs.py     # netCDF cube + mean-NDVI CSV/PNG
+  blocks.py      # load the two field blocks (Feldblöcke)
+  landsat.py     # Landsat C2 L2 30 m scenes for the blocks (Planetary Computer)
   pipeline.py    # orchestration
 main.py          # CLI entry point
 ```

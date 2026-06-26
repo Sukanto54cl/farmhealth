@@ -84,4 +84,17 @@ Execution flow, `main.py` -> `src/pipeline.py::run`:
 lightweight synchronous timeseries call is a fast signal that auth and the process graph are
 valid before kicking off the slow batch job.
 
+**`src/landsat.py`** is a separate, standalone path (not part of `pipeline.run()`). CDSE hosts
+only Copernicus/Sentinel data, so 30 m Landsat C2 L2 imagery for the field blocks is sourced
+from the **Microsoft Planetary Computer** STAC (`landsat-c2-l2`) instead of the openEO backend.
+It searches scenes over the blocks' footprint, then writes one surface-reflectance GeoTIFF + one
+`qa_pixel` GeoTIFF per scene to `outputs/landsat/`, clipped to the blocks. Run it with
+`uv run python -m src.landsat`. Its test (`tests/test_landsat.py`) mocks `pystac_client.Client`
+and `odc.stac.load` — no network.
+
 Outputs land in `outputs/` (gitignored), boundary downloads/cache in `data/` (gitignored).
+
+Note: on this Windows checkout the venv resolves via an extended-length UNC path
+(`\\?\UNC\...`), which makes the `uv run pytest` console-script shim fail to load numpy's
+C-extension ("DLL load failed ... The parameter is incorrect"). Use `uv run python -m pytest`
+locally instead. CI runs on Linux and is unaffected, so the documented `uv run pytest` works there.

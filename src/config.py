@@ -17,6 +17,18 @@ S2_COLLECTION = "SENTINEL2_L2A"
 #   8 cloud medium prob, 9 cloud high prob, 10 thin cirrus, 11 snow/ice.
 SCL_MASK_CLASSES = (0, 1, 3, 8, 9, 10, 11)
 
+# Landsat Collection-2 Level-2 (surface reflectance) on the Microsoft Planetary
+# Computer STAC. CDSE itself does not host Landsat, so block-level 30 m imagery
+# is sourced from PC instead of the openEO backend used for Sentinel-2.
+PC_STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
+LANDSAT_COLLECTION = "landsat-c2-l2"
+# Surface-reflectance optical bands (PC asset keys) plus the per-pixel QA band.
+LANDSAT_SR_BANDS = ("red", "green", "blue", "nir08", "swir16", "swir22")
+LANDSAT_QA_BAND = "qa_pixel"
+# USGS Collection-2 Level-2 surface-reflectance scaling (DN -> reflectance).
+LANDSAT_SR_SCALE = 0.0000275
+LANDSAT_SR_OFFSET = -0.2
+
 
 @dataclass
 class Config:
@@ -59,6 +71,11 @@ class Config:
     @property
     def blocks_timeseries_csv(self) -> Path:
         return self.out_dir / "ndvi_blocks_timeseries.csv"
+
+    @property
+    def landsat_dir(self) -> Path:
+        """Directory for per-scene Landsat GeoTIFFs of the field blocks."""
+        return self.out_dir / "landsat"
 
 
 def parse_args(argv: list[str] | None = None) -> Config:
