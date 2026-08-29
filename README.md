@@ -12,6 +12,8 @@ The pipeline builds **monthly, cloud-masked median NDVI** composites and produce
   clipped to the county, 20 m, EPSG:32633.
 - `outputs/ndvi_timeseries.csv` — county **mean NDVI** per month.
 - `outputs/ndvi_timeseries.png` — chart of the mean-NDVI seasonal curve.
+- `outputs/ndvi_blocks_timeseries.csv` / `.png` — mean NDVI per month for each
+  selected field block (Feldblock).
 
 ## Prerequisites
 
@@ -22,11 +24,34 @@ The pipeline builds **monthly, cloud-masked median NDVI** composites and produce
    uv sync
    ```
 
+## Make targets
+
+A `Makefile` wraps the common tasks (`make` with no target prints this list):
+
+| Target | What it does |
+|--------|--------------|
+| `make sync` | Install/refresh the locked dependency set. |
+| `make run` | Run the NDVI pipeline (`main.py`). |
+| `make landsat` | Download Landsat 30 m scenes for the field blocks. |
+| `make test` | Run the test suite (no network, no CDSE account needed). |
+| `make test-cov` | Same, with a `term-missing` coverage report. |
+| `make notebook` | Open `notebooks/visualize.ipynb` in Jupyter Lab. |
+| `make clean` | Remove Python/pytest caches (keeps `outputs/` and `data/`). |
+| `make clean-outputs` | Delete `outputs/` — re-running the pipeline is slow. |
+
+Every target that runs a script forwards `ARGS` to it:
+
+```bash
+make run ARGS="--start 2024-04-01 --end 2024-11-01"
+make landsat ARGS="--max-cloud 40 --yes"
+make test ARGS="tests/test_aoi.py -k dissolve"
+```
+
 ## Run
 
 ```bash
 # Defaults: Märkisch-Oderland, 2025-05-01 .. 2026-05-01, monthly, 20 m
-uv run python main.py
+uv run python main.py     # or: make run
 ```
 
 On the **first run**, the openEO client prints a URL and a code: open the URL in a
@@ -69,6 +94,7 @@ before downloading; reply anything else to abort. Use `--yes` to skip the prompt
 
 ```bash
 uv run python -m src.landsat --start 2024-06-01 --end 2024-07-15 --max-cloud 40
+# or: make landsat ARGS="--start 2024-06-01 --end 2024-07-15 --max-cloud 40"
 # -> lists scenes, then: "Download these N scene(s)? [y/N]:"
 ```
 
@@ -103,4 +129,20 @@ src/
   landsat.py     # Landsat C2 L2 30 m scenes for the blocks (Planetary Computer)
   pipeline.py    # orchestration
 main.py          # CLI entry point
+tests/           # pytest suite — fully offline (fake openEO backend, synthetic boundaries)
+notebooks/
+  visualize.ipynb  # maps, seasonal curves, block & 30 m pixel-grid exploration
+Makefile         # sync / run / landsat / test / notebook shortcuts
+```
+
+## Tests
+
+The suite never touches the real CDSE backend and never downloads the real BKG boundary file:
+openEO calls go through `openeo.rest._testing.DummyBackend` and the boundary/block readers are
+monkeypatched with synthetic GeoDataFrames — so it runs offline, without a CDSE account.
+CI (`.github/workflows/ci.yml`) runs it on every push to `main` and on pull requests.
+
+```bash
+make test        # or: uv run pytest
+make test-cov    # with a coverage report
 ```
