@@ -6,13 +6,21 @@ from .aoi import load_aoi
 from .blocks import load_blocks
 from .config import Config
 from .ndvi_cube import build_monthly_ndvi, connect
-from .outputs import write_block_timeseries, write_netcdf_cube, write_timeseries
+from .outputs import (
+    write_block_timeseries,
+    write_netcdf_cube,
+    write_pixel_grid,
+    write_timeseries,
+)
 
 
 def run(config: Config) -> None:
     """Resolve AOI, build the cube on CDSE, and write all deliverables."""
     aoi = load_aoi(config)
     blocks = load_blocks()
+
+    # Offline and cheap — write it before anything that needs the backend.
+    write_pixel_grid(blocks, config)
 
     connection = connect()
     monthly = build_monthly_ndvi(connection, aoi, config)

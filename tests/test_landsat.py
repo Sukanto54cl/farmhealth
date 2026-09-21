@@ -158,6 +158,24 @@ def test_pixel_grid_accepts_blocks_in_different_crs():
     assert grid.iloc[0]["frac_in_block"] == pytest.approx(1.0)
 
 
+def test_block_pixel_grid_matches_the_raster_grid():
+    """The synthesized lattice must land on the same pixel boxes as the real raster's."""
+    # Unlike _fake_pixel_da, this one sits on the real Landsat anchor (multiples of 30 m).
+    x = np.arange(6) * 30.0 + 441_045.0
+    y = 5_835_345.0 - np.arange(6) * 30.0
+    da = xr.DataArray(
+        np.zeros((6, 6), dtype="float32"), coords={"y": y, "x": x}, dims=("y", "x")
+    ).rio.write_crs("EPSG:32633")
+    blocks = _block("b", box(441_090.0, 5_835_240.0, 441_120.0, 5_835_270.0))
+
+    from_raster = landsat.pixel_grid(da, blocks, epsg=32633, buffer_px=1)
+    synthesized = landsat.block_pixel_grid(blocks, epsg=32633, buffer_px=1)
+
+    assert sorted(zip(from_raster["x"], from_raster["y"])) == sorted(
+        zip(synthesized["x"], synthesized["y"])
+    )
+
+
 def _fake_scene_dataset(epsg=32633):
     y = np.array([5_800_030.0, 5_800_000.0])
     x = np.array([400_000.0, 400_030.0])

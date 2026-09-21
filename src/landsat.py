@@ -17,6 +17,7 @@ import argparse
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 import planetary_computer
 import pystac_client
 import rioxarray  # noqa: F401  (registers the .rio accessor)
@@ -173,6 +174,32 @@ def pixel_grid(
     return gpd.GeoDataFrame(
         rows, columns=["block_id", "x", "y", "frac_in_block", "geometry"], crs=epsg
     )
+
+
+def block_pixel_grid(
+    blocks: gpd.GeoDataFrame,
+    *,
+    epsg: int,
+    resolution: float = 30.0,
+    buffer_px: int = 2,
+) -> gpd.GeoDataFrame:
+    """``pixel_grid`` for blocks with no scene downloaded: synthesize the lattice instead.
+
+    Landsat C2 L2 UTM grids are anchored on whole multiples of the 30 m pixel size (the
+    scenes here have origin 441030 / 5835360 in EPSG:32633), so a lattice snapped to that
+    anchor lines up cell-for-cell with the real pixels. Same columns as ``pixel_grid``.
+    """
+    minx, miny, maxx, maxy = blocks.to_crs(epsg).total_bounds
+    pad = (buffer_px + 1) * resolution
+    # Pixel centers sit half a pixel off the anchor grid.
+    xs = np.arange(np.floor((minx - pad) / resolution), np.ceil((maxx + pad) / resolution) + 1)
+    ys = np.arange(np.ceil((maxy + pad) / resolution), np.floor((miny - pad) / resolution) - 1, -1)
+    xs = xs * resolution + resolution / 2
+    ys = ys * resolution - resolution / 2
+    da = xr.DataArray(
+        np.zeros((ys.size, xs.size), "uint8"), coords={"y": ys, "x": xs}, dims=("y", "x")
+    ).rio.write_crs(epsg)
+    return pixel_grid(da, blocks, epsg=epsg, buffer_px=buffer_px)
 
 
 def _confirm_download(n: int) -> bool:

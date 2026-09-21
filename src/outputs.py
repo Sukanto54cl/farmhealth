@@ -18,6 +18,7 @@ from openeo.rest.vectorcube import VectorCube
 
 from .aoi import AOI
 from .config import Config
+from .landsat import block_pixel_grid
 
 # CDSE's synchronous /result endpoint occasionally fails a process graph with a
 # transient backend-side 5xx (e.g. a structured 500 "A part of your process graph
@@ -66,6 +67,16 @@ def _parse_timeseries(result: dict) -> pd.DataFrame:
         rows.append({"date": pd.to_datetime(date), "ndvi": value})
     df = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
     return df
+
+
+def write_pixel_grid(blocks: gpd.GeoDataFrame, config: Config) -> Path:
+    """Write the 30 m Landsat pixel grid for the blocks as a GeoPackage. No network needed."""
+    config.out_dir.mkdir(parents=True, exist_ok=True)
+    grid = block_pixel_grid(blocks, epsg=config.epsg)
+    grid.to_file(config.pixel_grid_path, driver="GPKG")
+    pure = int((grid["frac_in_block"] >= 0.99).sum())
+    print(f"Wrote {config.pixel_grid_path} ({len(grid)} pixels, {pure} pure)")
+    return config.pixel_grid_path
 
 
 def write_timeseries(monthly: openeo.DataCube, aoi: AOI, config: Config) -> Path:
