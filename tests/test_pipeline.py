@@ -17,6 +17,7 @@ def test_run_orchestrates_aoi_connect_and_outputs(monkeypatch, dummy_backend, sa
     assert config.timeseries_csv.exists()
     assert config.timeseries_png.exists()
     assert config.blocks_timeseries_csv.exists()
+    assert config.pixel_grid_path.exists()
     assert config.netcdf_path.exists()
     assert len(dummy_backend.sync_requests) == 2
     assert len(dummy_backend.batch_jobs) == 1

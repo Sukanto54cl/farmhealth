@@ -73,6 +73,11 @@ class Config:
         return self.out_dir / "ndvi_blocks_timeseries.csv"
 
     @property
+    def pixel_grid_path(self) -> Path:
+        """Vectorized 30 m Landsat pixel grid for the field blocks."""
+        return self.out_dir / "landsat_pixel_grid.gpkg"
+
+    @property
     def landsat_dir(self) -> Path:
         """Directory for per-scene Landsat GeoTIFFs of the field blocks."""
         return self.out_dir / "landsat"

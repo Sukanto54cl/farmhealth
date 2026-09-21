@@ -11,7 +11,7 @@ from pathlib import Path
 import geopandas as gpd
 
 BLOCKS_PATH = Path(__file__).resolve().parent.parent / "data" / "dfbk_fb_mol.shp"
-BLOCK_IDS = ("DEBBLI0264002685", "DEBBLI2064399462")
+BLOCK_IDS = ("DEBBLI0264002685", "DEBBLI2064399462", "DEBBLI0264000093")
 
 
 def load_blocks(path: Path = BLOCKS_PATH, block_ids: tuple[str, ...] = BLOCK_IDS) -> gpd.GeoDataFrame:
