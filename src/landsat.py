@@ -202,6 +202,16 @@ def block_pixel_grid(
     return pixel_grid(da, blocks, epsg=epsg, buffer_px=buffer_px)
 
 
+def write_pixel_grid(blocks: gpd.GeoDataFrame, config: Config) -> Path:
+    """Write the 30 m Landsat pixel grid for the blocks as a GeoPackage. No network needed."""
+    config.out_dir.mkdir(parents=True, exist_ok=True)
+    grid = block_pixel_grid(blocks, epsg=config.epsg)
+    grid.to_file(config.pixel_grid_path, driver="GPKG")
+    pure = int((grid["frac_in_block"] >= 0.99).sum())
+    print(f"Wrote {config.pixel_grid_path} ({len(grid)} pixels, {pure} pure)")
+    return config.pixel_grid_path
+
+
 def _confirm_download(n: int) -> bool:
     """Ask the user to confirm before downloading. Only an explicit 'y'/'yes' proceeds."""
     reply = input(f"Download these {n} scene(s)? [y/N]: ").strip().lower()
@@ -247,7 +257,7 @@ def download_blocks_landsat(
     return written
 
 
-def parse_args(argv: list[str] | None = None) -> tuple[Config, float, float, bool, bool]:
+def parse_args(argv: list[str] | None = None) -> tuple[Config, float, float, bool, bool, bool]:
     p = argparse.ArgumentParser(
         description="Download Landsat C2 L2 (30 m) scenes for the field blocks via Planetary Computer.",
     )
@@ -261,13 +271,18 @@ def parse_args(argv: list[str] | None = None) -> tuple[Config, float, float, boo
     p.add_argument("--buffer", type=float, default=150.0, help="Context buffer around blocks (m).")
     p.add_argument("--no-scale", action="store_true", help="Keep raw DN instead of scaling to reflectance.")
     p.add_argument("-y", "--yes", action="store_true", help="Skip the confirmation prompt and download.")
+    p.add_argument("--grid-only", action="store_true",
+                   help="Only write the pixel grid for the blocks; download nothing.")
     a = p.parse_args(argv)
     config = Config(start=a.start, end=a.end, epsg=a.epsg, out_dir=a.out_dir, data_dir=a.data_dir)
-    return config, a.max_cloud, a.buffer, not a.no_scale, a.yes
+    return config, a.max_cloud, a.buffer, not a.no_scale, a.yes, a.grid_only
 
 
 def main(argv: list[str] | None = None) -> None:
-    config, max_cloud, buffer_m, scale, assume_yes = parse_args(argv)
+    config, max_cloud, buffer_m, scale, assume_yes, grid_only = parse_args(argv)
+    if grid_only:
+        write_pixel_grid(load_blocks(), config)
+        return
     download_blocks_landsat(
         config, max_cloud=max_cloud, buffer_m=buffer_m, scale=scale, assume_yes=assume_yes
     )

@@ -222,7 +222,7 @@ def test_download_scene_writes_scaled_sr_and_qa(monkeypatch, tmp_path):
 
 
 def test_parse_args_builds_config_and_options():
-    config, max_cloud, buffer_m, scale, assume_yes = landsat.parse_args(
+    config, max_cloud, buffer_m, scale, assume_yes, grid_only = landsat.parse_args(
         ["--start", "2024-04-01", "--end", "2024-11-01", "--max-cloud", "20", "--no-scale"]
     )
     assert isinstance(config, Config)
@@ -230,11 +230,21 @@ def test_parse_args_builds_config_and_options():
     assert max_cloud == 20
     assert scale is False
     assert assume_yes is False
+    assert grid_only is False
 
 
 def test_parse_args_yes_flag():
-    *_, assume_yes = landsat.parse_args(["--yes"])
-    assert assume_yes is True
+    assert landsat.parse_args(["--yes"])[4] is True
+
+
+def test_main_grid_only_skips_the_download(monkeypatch, tmp_path):
+    monkeypatch.setattr(landsat, "load_blocks", lambda: "blocks")
+    monkeypatch.setattr(landsat, "write_pixel_grid", lambda blocks, config: tmp_path / "g.gpkg")
+    monkeypatch.setattr(
+        landsat, "download_blocks_landsat", lambda *a, **k: pytest.fail("must not download")
+    )
+
+    landsat.main(["--grid-only"])
 
 
 def test_download_blocks_aborts_without_yes(monkeypatch, config):

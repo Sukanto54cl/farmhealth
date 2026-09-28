@@ -5,13 +5,9 @@ from __future__ import annotations
 from .aoi import load_aoi
 from .blocks import load_blocks
 from .config import Config
+from .landsat import write_pixel_grid
 from .ndvi_cube import build_monthly_ndvi, connect
-from .outputs import (
-    write_block_timeseries,
-    write_netcdf_cube,
-    write_pixel_grid,
-    write_timeseries,
-)
+from .outputs import write_block_timeseries, write_netcdf_cube, write_timeseries
 
 
 def run(config: Config) -> None:
